@@ -7,3 +7,14 @@
 body {
   font-family: 'Roboto', sans-serif;
 }
+.transition-transform {
+  transition: transform 0.5s ease;
+}
+
+.scale-105 {
+  transform: scale(1.05);
+}
+
+.translate-x-full {
+  transform: translateX(100%);
+}
