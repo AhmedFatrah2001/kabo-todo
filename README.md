@@ -1,6 +1,3 @@
-Here's the corrected `README.md` file format that you can copy:
-
-```markdown
 # Kabo Todo App
 
 Kabo Todo is a task management system that allows multiple users to track their tasks from start to finish. It also provides an admin panel with full control over all tasks and user activities. The app includes a Dropbox component for users to exchange files in their original formats, supporting various file types, including media and document formats.
@@ -55,6 +52,3 @@ Kabo Todo is a task management system that allows multiple users to track their 
 ## Contributions
 
 Feel free to fork this project and submit pull requests. Any contributions are appreciated!
-```
-
-You can now copy this text into your `README.md` file and it should display correctly.
