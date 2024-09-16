@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Confetti from "react-confetti";
-import { FaCheckCircle } from "react-icons/fa";
+import { FaCheckCircle, FaUserCheck } from "react-icons/fa";
 
 const MyTasks = () => {
   const [tasks, setTasks] = useState([]);
@@ -32,13 +32,16 @@ const MyTasks = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/dashboard/tasks/${taskId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
+      const response = await fetch(
+        `http://localhost:5000/dashboard/tasks/${taskId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: newStatus }),
+        }
+      );
 
       if (response.ok) {
         setTasks((prevTasks) =>
@@ -88,7 +91,9 @@ const MyTasks = () => {
 
   return (
     <div className="p-6 bg-gray-50">
-      {confetti && <Confetti width={windowSize.width} height={windowSize.height} />}
+      {confetti && (
+        <Confetti width={windowSize.width} height={windowSize.height} />
+      )}
       <h2 className="text-2xl font-bold mb-6">My Tasks</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {tasks.map((task) => (
@@ -106,15 +111,24 @@ const MyTasks = () => {
           >
             <div className="flex justify-between items-center">
               <h3 className="text-xl font-semibold">{task.task}</h3>
-              {task.status === "Completed" && (
-                <FaCheckCircle className="text-green-500 text-2xl" />
-              )}
+              <div>
+                {" "}
+                {task.status === "Completed" && (
+                  <FaCheckCircle className="text-green-500 text-2xl" />
+                )}
+                {task.is_validated ? (
+                  <FaUserCheck className="text-green-500 text-2xl" />
+                ) : (
+                  ""
+                )}
+              </div>
             </div>
             <h6 className="text-sm text-gray-700">Client : {task.client}</h6>
-            <p className="text-sm text-gray-700">Description : {task.description}</p>
+            <p className="text-sm text-gray-700">
+              Description : {task.description}
+            </p>
             <p className="text-sm text-gray-500 mt-2">
-              Time Left :
-              {formatTimeLeft(task.end_date)}
+              Time Left :{formatTimeLeft(task.end_date)}
             </p>
             <div className="mt-4">
               <select

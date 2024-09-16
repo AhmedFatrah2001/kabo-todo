@@ -6,6 +6,9 @@ const dotenv = require('dotenv');
 const jwt = require('jsonwebtoken');
 const pool = require('./db');
 const nodemailer = require('nodemailer');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 
 dotenv.config();
 const app = express();
@@ -18,6 +21,8 @@ const transporter = nodemailer.createTransport({
     pass: 'fvdl ufyy wvqt ztbq',
   },
 });
+app.use('/uploads', express.static('uploads'));
+
 
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
@@ -97,7 +102,6 @@ app.delete('/dashboard/users/:id', async (req, res) => {
   const { id } = req.params;
   
   try {
-    // Check if the user is an admin
     const [rows] = await pool.query('SELECT isAdmin FROM users WHERE id = ?', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ message: 'User not found' });
@@ -156,7 +160,7 @@ app.get('/dashboard/tasks', async (req, res) => {
   }
 });
 app.get('/dashboard/tasks/filter', async (req, res) => {
-  const { client, responsible_user_id, importance_level, start_date, end_date, status } = req.query;
+  const { client, responsible_user_id, importance_level, start_date, end_date, status, is_validated } = req.query;
 
   let query = 'SELECT * FROM tasks WHERE 1=1';
   const queryParams = [];
@@ -185,6 +189,10 @@ app.get('/dashboard/tasks/filter', async (req, res) => {
     query += ' AND status = ?';
     queryParams.push(status);
   }
+  if (is_validated) {
+    query += ' AND is_validated = ?';
+    queryParams.push(is_validated === 'true' ? 1 : 0);
+  }
 
   try {
     const [results] = await pool.query(query, queryParams);
@@ -194,6 +202,7 @@ app.get('/dashboard/tasks/filter', async (req, res) => {
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
+
 app.put('/dashboard/tasks/:id', async (req, res) => {
   const { id } = req.params;
   const { client, responsible_user_id, task, description, importance_level, start_date, end_date, status } = req.body;
@@ -396,9 +405,248 @@ app.delete('/dashboard/comments/:id', async (req, res) => {
       res.status(500).json({ error: 'Server error' });
   }
 });
+app.put('/dashboard/validation/:taskid', async (req, res) => {
+  const { taskid } = req.params;
+  const { is_validated } = req.body;
 
 
+  if (typeof is_validated !== 'boolean') {
+    return res.status(400).json({ message: 'is_validated must be a boolean value' });
+  }
 
+  try {
+    const [result] = await pool.query(
+      'UPDATE tasks SET is_validated = ? WHERE id = ?',
+      [is_validated, taskid]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+
+    res.status(200).json({ message: `Task ${is_validated ? 'validated' : 'validation removed'} successfully!` });
+  } catch (error) {
+    console.error('Error updating task validation:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+app.get('/dashboard/validated', async (req, res) => {
+  try {
+    const query = 'SELECT * FROM tasks WHERE is_validated = 1';
+    const [results] = await pool.query(query);
+    
+    res.status(200).json(results);
+  } catch (error) {
+    console.error('Error fetching validated tasks:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+app.get('/user-performance/:id', async (req, res) => {
+  const { id } = req.params;
+
+  const query = `
+    SELECT tasks_validated, early_tasks, late_tasks, early_hours, late_hours, score
+    FROM user_performance
+    WHERE user_id = ?
+  `;
+
+  try {
+    const [rows] = await pool.query(query, [id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'User performance not found' });
+    }
+
+    res.status(200).json(rows[0]);
+  } catch (error) {
+    console.error('Error fetching user performance:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+app.get('/dashboard/notifications/:userid', async (req, res) => {
+  const { userid } = req.params;
+
+  try {
+    const query = 'SELECT * FROM notifications WHERE user_id = ?';
+    const [results] = await pool.query(query, [userid]);
+
+    // Return an empty set if no notifications are found
+    if (results.length === 0) {
+      return res.status(200).json([]); // Return an empty array
+    }
+
+    res.status(200).json(results);
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+app.delete('/dashboard/notifications/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [result] = await pool.query('DELETE FROM notifications WHERE id = ?', [id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    res.status(200).json({ message: 'Notification deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting notification:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+app.put('/dashboard/notifications/mark-read/:userid', async (req, res) => {
+  const { userid } = req.params;
+
+  try {
+    const query = 'UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0';
+    const [result] = await pool.query(query, [userid]);
+
+    if (result.affectedRows === 0) {
+      return res.status(200).json({ message: 'No unread notifications to mark as read' });
+    }
+
+    res.status(200).json({ message: 'All unread notifications marked as read' });
+  } catch (error) {
+    console.error('Error marking notifications as read:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+
+//File uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, file.originalname); 
+  }
+});
+
+const upload = multer({ storage: storage });
+
+app.post('/dashboard/upload', upload.single('file'), async (req, res) => {
+  const { uploader_id, allowed_users } = req.body;
+  const filepath = `/uploads/${req.file.originalname}`;
+
+  const allowedUsers = JSON.parse(allowed_users);
+
+  try {
+    // Insert file info into the 'files' table
+    const [result] = await pool.query(
+      'INSERT INTO files (filename, uploader_id, filepath, created_at) VALUES (?, ?, ?, NOW())',
+      [req.file.originalname, uploader_id, filepath]
+    );
+
+    const fileId = result.insertId;
+
+    // Automatically add uploader to allowed users
+    if (!allowedUsers.includes(parseInt(uploader_id))) {
+      allowedUsers.push(parseInt(uploader_id));
+    }
+
+    // Insert each allowed user into the 'file_permissions' table
+    const permissionQueries = allowedUsers.map(userId => {
+      return pool.query(
+        'INSERT INTO file_permissions (file_id, user_id) VALUES (?, ?)',
+        [fileId, userId]
+      );
+    });
+
+    await Promise.all(permissionQueries);
+
+    // Respond with success and newly uploaded file info
+    res.status(200).json({ 
+      message: 'File uploaded and permissions assigned successfully!', 
+      file: {
+        id: fileId,
+        filename: req.file.originalname,
+        filepath: filepath
+      }
+    });
+  } catch (err) {
+    console.error('Error uploading file:', err);
+    res.status(500).send({ message: 'File upload failed!', error: err });
+  }
+});
+
+
+// Fetch files for the current user
+app.get('/dashboard/files/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const query = `
+      SELECT f.id, f.filename, f.filepath, f.uploader_id, f.created_at
+      FROM files f
+      INNER JOIN file_permissions fp ON f.id = fp.file_id
+      WHERE fp.user_id = ?
+    `;
+    const [files] = await pool.query(query, [userId]);
+
+    res.json(files);
+  } catch (error) {
+    console.error('Error fetching files:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+
+app.delete('/dashboard/file/:id', async (req, res) => {
+  const fileId = req.params.id;
+  
+  try {
+    const [file] = await pool.query('SELECT filepath FROM files WHERE id = ?', [fileId]);
+    if (!file.length) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    const filepath = `./${file[0].filepath}`;
+    fs.unlinkSync(filepath);  // Deletes file from local storage
+
+    await pool.query('DELETE FROM files WHERE id = ?', [fileId]);
+    res.status(200).json({ message: 'File deleted successfully!' });
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+app.get('/dashboard/files/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const query = `
+      SELECT f.id, f.filename, f.filepath 
+      FROM files f
+      JOIN file_permissions fp ON f.id = fp.file_id
+      WHERE fp.user_id = ?
+    `;
+    const [results] = await pool.query(query, [userId]);
+    res.status(200).json(results);
+  } catch (error) {
+    console.error('Error fetching files:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+app.get('/download/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const filepath = path.join(__dirname, 'uploads', filename);
+  
+  res.download(filepath, (err) => {
+    if (err) {
+      console.error('Error sending file:', err);
+      res.status(404).send('File not found.');
+    }
+  });
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

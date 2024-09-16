@@ -5,6 +5,7 @@ import MyTasks from './pages/MyTasks';
 import AllTasks from './pages/AllTasks';
 import Profile from './pages/Profile';
 import Dashboard from './pages/Dashboard';
+import DropboxPage from './pages/DropboxPage';
 import { AuthProvider, useAuth } from './components/AuthContext';
 
 const ProtectedRoute = ({ element: Component, adminOnly, ...rest }) => {
@@ -33,6 +34,7 @@ function App() {
         <Route path="/my-tasks" element={<ProtectedRoute element={MyTasks} />} />
         <Route path="/all-tasks" element={<ProtectedRoute element={AllTasks} />} />
         <Route path="/profile" element={<ProtectedRoute element={Profile} />} />
+        <Route path="/dropbox" element={<ProtectedRoute element={DropboxPage} />} /> 
         <Route path="/dashboard" element={<ProtectedRoute element={Dashboard} adminOnly />} />
       </Routes>
     </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import TaskModal from "./TaskModal";
-import { FaStar } from "react-icons/fa";
+import { FaStar,FaUserCheck } from "react-icons/fa";
+import { FaRegCircleXmark } from "react-icons/fa6";
 import TasksFilter from "./TasksFilter";
 
 const TaskManagement = () => {
@@ -325,6 +326,7 @@ const TaskManagement = () => {
                 <th className="p-2 border-b text-center">Start Date</th>
                 <th className="p-2 border-b text-center">End Date</th>
                 <th className="p-2 border-b text-center">Status</th>
+                <th className="p-2 border-b text-center">validation</th>
               </tr>
             </thead>
             <tbody>
@@ -402,6 +404,7 @@ const TaskManagement = () => {
                   >
                     {task.status}
                   </td>
+                  <td className="p-2 border-b text-center">{task.is_validated ? <FaUserCheck/>:<FaRegCircleXmark/>}</td>
                 </tr>
               ))}
             </tbody>

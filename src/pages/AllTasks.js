@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { FaStar, FaPlus, FaTimes } from "react-icons/fa";
+import { FaStar, FaPlus, FaTimes, FaUserCheck } from "react-icons/fa";
 import TasksFilter from "../components/TasksFilter";
+import { FaRegCircleXmark } from "react-icons/fa6";
 
 const AllTasks = () => {
   const [users, setUsers] = useState([]);
@@ -171,6 +172,7 @@ const AllTasks = () => {
                 <th className="p-2 border-b text-center">Start Date</th>
                 <th className="p-2 border-b text-center">End Date</th>
                 <th className="p-2 border-b text-center">Status</th>
+                <th className="p-2 border-b text-center">Validation</th>
               </tr>
             </thead>
             <tbody>
@@ -238,6 +240,7 @@ const AllTasks = () => {
                       {formatShortDate(task.end_date)}
                     </td>
                     <td className="p-2 border-b text-center">{task.status}</td>
+                    <td className="p-2 border-b text-center">{task.is_validated ? <FaUserCheck/>:<FaRegCircleXmark/>}</td>
                   </tr>
                   {expandedTaskId === task.id && (
                     <tr>
@@ -305,6 +308,7 @@ const AllTasks = () => {
                           )}
                         </div>
                       </td>
+                      
                     </tr>
                   )}
                 </React.Fragment>
