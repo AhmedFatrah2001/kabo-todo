@@ -149,9 +149,9 @@ const AllTasks = () => {
   };
 
   return (
-    <div className="bg-white shadow-lg rounded-lg p-6 space-y-6">
+    <div className="shadow-lg rounded-lg p-6 space-y-6">
       <div className="w-full">
-        <h2 className="text-2xl font-bold mb-4">Tasks</h2>
+      <h1 className="text-4xl font-bold mb-6 text-gray-700">All Tasks</h1>
         <input
           type="text"
           placeholder="Search tasks"

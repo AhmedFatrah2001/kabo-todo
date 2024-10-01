@@ -1,0 +1,45 @@
+services:
+  # React Frontend
+  frontend:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://backend:5000
+    depends_on:
+      - backend
+    networks:
+      - kabo-network
+
+  # Node.js Backend
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "5000:5000"
+    environment:
+      - DB_HOST=mysql-db
+      - DB_USER=root
+      - DB_PASSWORD=Ahmed159263
+      - DB_NAME=kaboTodo
+    depends_on:
+      - mysql-db
+    networks:
+      - kabo-network
+
+  # MySQL Database
+  mysql-db:
+    image: mysql:8.0
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: Ahmed159263
+      MYSQL_DATABASE: kaboTodo
+    volumes:
+      - ./kaboTodo_structure.sql:/docker-entrypoint-initdb.d/kaboTodo_structure.sql
+    networks:
+      - kabo-network
+
+networks:
+  kabo-network:
+    driver: bridge

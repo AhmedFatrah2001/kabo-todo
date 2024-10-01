@@ -10,8 +10,16 @@ import {
 } from "chart.js";
 import axios from "axios";
 import { format } from "date-fns";
+import ProfileEdit from "../components/ProfileEdit";
 
-Chart.register(CategoryScale, LinearScale, ArcElement, BarElement, Tooltip, Legend);
+Chart.register(
+  CategoryScale,
+  LinearScale,
+  ArcElement,
+  BarElement,
+  Tooltip,
+  Legend
+);
 
 const Profile = () => {
   const userId = localStorage.getItem("userId");
@@ -128,8 +136,18 @@ const Profile = () => {
 
       const barChartData = {
         labels: [
-          "January", "February", "March", "April", "May", "June",
-          "July", "August", "September", "October", "November", "December"
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
         ],
         datasets: [
           {
@@ -172,38 +190,50 @@ const Profile = () => {
 
   return (
     <div className="p-8 max-w-6xl mx-auto bg-gray-100 min-h-screen">
-      <h1 className="text-4xl font-bold text-center mb-8">Profile</h1>
+      <h1 className="text-4xl font-bold mb-6 text-gray-700">Profile</h1>
       {!performance ? (
         <p className="text-center text-lg">Loading performance stats...</p>
       ) : (
         <div>
-          <h2 className="text-2xl font-semibold text-center mb-6">
-            Your Performance
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-12">
-            {[
-              { title: "Tasks Validated", value: performance.tasks_validated },
-              { title: "Early Tasks", value: performance.early_tasks },
-              { title: "Late Tasks", value: performance.late_tasks },
-              {
-                title: "Early Hours",
-                value: `${performance.early_hours} hours`,
-              },
-              { title: "Late Hours", value: `${performance.late_hours} hours` },
-              { title: "Overall Score", value: performance.score },
-            ].map((item, index) => (
-              <div
-                key={index}
-                className="bg-white shadow-lg p-6 rounded-lg text-center"
-              >
-                <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
-                <p className="text-3xl font-bold text-indigo-600">
-                  {item.value}
-                </p>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
+            {/* Profile Edit Section */}
+            <div className="bg-white shadow-lg p-6 rounded-lg">
+              <ProfileEdit />
+            </div>
+
+            {/* Performance Stats Section */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {[
+                {
+                  title: "Tasks Validated",
+                  value: performance.tasks_validated,
+                },
+                { title: "Early Tasks", value: performance.early_tasks },
+                { title: "Late Tasks", value: performance.late_tasks },
+                {
+                  title: "Early Hours",
+                  value: `${performance.early_hours}h`,
+                },
+                {
+                  title: "Late Hours",
+                  value: `${performance.late_hours}h`,
+                },
+                { title: "Overall Score", value: performance.score },
+              ].map((item, index) => (
+                <div
+                  key={index}
+                  className="bg-white shadow-lg p-6 rounded-lg text-center"
+                >
+                  <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
+                  <p className="text-4xl font-bold text-indigo-600">
+                    {item.value}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
 
+          {/* Performance Charts Section */}
           <h2 className="text-2xl font-semibold text-center mb-6">
             Performance Charts
           </h2>
@@ -232,6 +262,7 @@ const Profile = () => {
             </div>
           </div>
 
+          {/* Monthly Validated Tasks Section */}
           <h2 className="text-2xl font-semibold text-center mb-6">
             Monthly Validated Tasks
           </h2>

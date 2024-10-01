@@ -9,6 +9,17 @@ const nodemailer = require('nodemailer');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const fetch = require('node-fetch');
+
+const clientRoutes = require('./routes/clientRoutes');
+const userRoutes = require('./routes/userRoutes');
+const taskRoutes = require('./routes/taskRoutes');
+const commentsRoutes = require('./routes/commentsRoutes');
+const validationRoutes = require('./routes/validationRoutes');
+const notificationRoutes = require('./routes/notificationRoutes')
+
+const axios = require('axios');
+const cheerio = require('cheerio');
 
 dotenv.config();
 const app = express();
@@ -23,6 +34,12 @@ const transporter = nodemailer.createTransport({
 });
 app.use('/uploads', express.static('uploads'));
 
+app.use(clientRoutes);
+app.use(userRoutes);
+app.use(taskRoutes);
+app.use(commentsRoutes);
+app.use(validationRoutes);
+app.use(notificationRoutes)
 
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
@@ -89,359 +106,9 @@ app.post('/dashboard/register', async (req, res) => {
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
-app.get('/dashboard/users', async (req, res) => {
-  try {
-    const [rows] = await pool.query('SELECT id, username, isAdmin, password, created_at FROM users');
-    res.status(200).json(rows);
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-app.delete('/dashboard/users/:id', async (req, res) => {
-  const { id } = req.params;
-  
-  try {
-    const [rows] = await pool.query('SELECT isAdmin FROM users WHERE id = ?', [id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    if (rows[0].isAdmin) {
-      return res.status(403).json({ message: 'Cannot delete admin user' });
-    }
-
-    await pool.query('DELETE FROM users WHERE id = ?', [id]);
-    res.status(200).json({ message: 'User deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-app.put('/dashboard/users/:id', async (req, res) => {
-  const { id } = req.params;
-  const { username, password } = req.body;
-
-  try {
-    const [rows] = await pool.query('SELECT isAdmin FROM users WHERE id = ?', [id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    if (rows[0].isAdmin) {
-      return res.status(403).json({ message: 'Cannot modify admin user' });
-    }
-    await pool.query('UPDATE users SET username = ?, password = ? WHERE id = ?', [username, password, id]);
-    res.status(200).json({ message: 'User updated successfully' });
-  } catch (error) {
-    console.error('Error updating user:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-app.post('/dashboard/tasks', async (req, res) => {
-  const { client, responsible_user_id, task, description, importance_level, start_date, end_date, status } = req.body;
-
-  try {
-    await pool.query(
-      'INSERT INTO tasks (client, responsible_user_id, task, description, importance_level, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [client, responsible_user_id, task, description, importance_level, start_date, end_date, status]
-    );
-    res.status(201).json({ message: 'Task created successfully' });
-  } catch (error) {
-    console.error('Error creating task:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-app.get('/dashboard/tasks', async (req, res) => {
-  try {
-    const [rows] = await pool.query('SELECT * FROM tasks');
-    res.status(200).json(rows);
-  } catch (error) {
-    console.error('Error fetching tasks:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-app.get('/dashboard/tasks/filter', async (req, res) => {
-  const { client, responsible_user_id, importance_level, start_date, end_date, status, is_validated } = req.query;
-
-  let query = 'SELECT * FROM tasks WHERE 1=1';
-  const queryParams = [];
-
-  if (client) {
-    query += ' AND client LIKE ?';
-    queryParams.push(`%${client}%`);
-  }
-  if (responsible_user_id) {
-    query += ' AND responsible_user_id = ?';
-    queryParams.push(responsible_user_id);
-  }
-  if (importance_level) {
-    query += ' AND importance_level = ?';
-    queryParams.push(importance_level);
-  }
-  if (start_date) {
-    query += ' AND start_date >= ?';
-    queryParams.push(start_date);
-  }
-  if (end_date) {
-    query += ' AND end_date <= ?';
-    queryParams.push(end_date);
-  }
-  if (status) {
-    query += ' AND status = ?';
-    queryParams.push(status);
-  }
-  if (is_validated) {
-    query += ' AND is_validated = ?';
-    queryParams.push(is_validated === 'true' ? 1 : 0);
-  }
-
-  try {
-    const [results] = await pool.query(query, queryParams);
-    res.status(200).json(results);
-  } catch (error) {
-    console.error('Error filtering tasks:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-
-app.put('/dashboard/tasks/:id', async (req, res) => {
-  const { id } = req.params;
-  const { client, responsible_user_id, task, description, importance_level, start_date, end_date, status } = req.body;
-
-  let query = 'UPDATE tasks SET';
-  const queryParams = [];
-  const fieldsToUpdate = [];
-
-  if (client) {
-    fieldsToUpdate.push(' client = ?');
-    queryParams.push(client);
-  }
-  if (responsible_user_id) {
-    fieldsToUpdate.push(' responsible_user_id = ?');
-    queryParams.push(responsible_user_id);
-  }
-  if (task) {
-    fieldsToUpdate.push(' task = ?');
-    queryParams.push(task);
-  }
-  if (description) {
-    fieldsToUpdate.push(' description = ?');
-    queryParams.push(description);
-  }
-  if (importance_level) {
-    fieldsToUpdate.push(' importance_level = ?');
-    queryParams.push(importance_level);
-  }
-  if (start_date) {
-    fieldsToUpdate.push(' start_date = ?');
-    queryParams.push(start_date);
-  }
-  if (end_date) {
-    fieldsToUpdate.push(' end_date = ?');
-    queryParams.push(end_date);
-  }
-  if (status) {
-    fieldsToUpdate.push(' status = ?');
-    queryParams.push(status);
-  }
-
-  if (fieldsToUpdate.length === 0) {
-    return res.status(400).json({ message: 'No fields to update' });
-  }
-
-  query += fieldsToUpdate.join(', ') + ' WHERE id = ?';
-  queryParams.push(id);
-
-  try {
-    const [result] = await pool.query(query, queryParams);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Task not found' });
-    }
-
-    res.status(200).json({ message: 'Task updated successfully' });
-  } catch (error) {
-    console.error('Error updating task:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-
-app.delete('/dashboard/tasks/:id', async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const [result] = await pool.query('DELETE FROM tasks WHERE id = ?', [id]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Task not found' });
-    }
-
-    res.status(200).json({ message: 'Task deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting task:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-app.get('/dashboard/tasks/:id', async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const [rows] = await pool.query('SELECT * FROM tasks WHERE id = ?', [id]);
-
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Task not found' });
-    }
-
-    res.status(200).json(rows[0]);
-  } catch (error) {
-    console.error('Error fetching task:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-//Clients
-app.post('/dashboard/clients', async (req, res) => {
-  const { client_name, description } = req.body;
-  
-  try {
-    await pool.query('INSERT INTO clients (client_name, description) VALUES (?, ?)', [client_name, description]);
-    res.status(201).json({ message: 'Client created successfully' });
-  } catch (error) {
-    console.error('Error creating client:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-app.get('/dashboard/clients', async (req, res) => {
-  try {
-    const [rows] = await pool.query('SELECT * FROM clients');
-    res.status(200).json(rows);
-  } catch (error) {
-    console.error('Error fetching clients:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-app.get('/dashboard/clients/:client_name', async (req, res) => {
-  const { client_name } = req.params;
-  
-  try {
-    const [rows] = await pool.query('SELECT * FROM clients WHERE client_name = ?', [client_name]);
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Client not found' });
-    }
-    res.status(200).json(rows[0]);
-  } catch (error) {
-    console.error('Error fetching client:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-app.put('/dashboard/clients/:client_name', async (req, res) => {
-  const { client_name } = req.params;
-  const { description } = req.body;
-  
-  try {
-    const [result] = await pool.query(
-      'UPDATE clients SET description = ? WHERE client_name = ?',
-      [description, client_name]
-    );
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Client not found' });
-    }
-    res.status(200).json({ message: 'Client updated successfully' });
-  } catch (error) {
-    console.error('Error updating client:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-app.delete('/dashboard/clients/:client_name', async (req, res) => {
-  const { client_name } = req.params;
-  
-  try {
-    const [result] = await pool.query('DELETE FROM clients WHERE client_name = ?', [client_name]);
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Client not found' });
-    }
-    res.status(200).json({ message: 'Client deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting client:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-//comments
-app.post('/dashboard/comments', async (req, res) => {
-  const { task_id, user_id, comment } = req.body;
-  try {
-      const newComment = await pool.query(
-          'INSERT INTO comments (task_id, user_id, comment, created_at) VALUES (?, ?, ?, NOW())',
-          [task_id, user_id, comment]
-      );
-      res.json({ message: 'Comment added successfully', comment: newComment.insertId });
-  } catch (err) {
-      console.error(err.message);
-      res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Get comments by task
-app.get('/dashboard/comments/:task_id', async (req, res) => {
-  const { task_id } = req.params;
-  try {
-    const [comments] = await pool.query(
-      'SELECT c.*, u.username FROM comments c JOIN users u ON c.user_id = u.id WHERE c.task_id = ? ORDER BY c.created_at DESC',
-      [task_id]
-    );
-    res.json(comments);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Delete a comment
-app.delete('/dashboard/comments/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-      await pool.query('DELETE FROM comments WHERE id = ?', [id]);
-      res.json({ message: 'Comment deleted successfully' });
-  } catch (err) {
-      console.error(err.message);
-      res.status(500).json({ error: 'Server error' });
-  }
-});
-app.put('/dashboard/validation/:taskid', async (req, res) => {
-  const { taskid } = req.params;
-  const { is_validated } = req.body;
 
 
-  if (typeof is_validated !== 'boolean') {
-    return res.status(400).json({ message: 'is_validated must be a boolean value' });
-  }
-
-  try {
-    const [result] = await pool.query(
-      'UPDATE tasks SET is_validated = ? WHERE id = ?',
-      [is_validated, taskid]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Task not found' });
-    }
-
-    res.status(200).json({ message: `Task ${is_validated ? 'validated' : 'validation removed'} successfully!` });
-  } catch (error) {
-    console.error('Error updating task validation:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-app.get('/dashboard/validated', async (req, res) => {
-  try {
-    const query = 'SELECT * FROM tasks WHERE is_validated = 1';
-    const [results] = await pool.query(query);
-    
-    res.status(200).json(results);
-  } catch (error) {
-    console.error('Error fetching validated tasks:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-
+//user performance
 app.get('/user-performance/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -465,59 +132,6 @@ app.get('/user-performance/:id', async (req, res) => {
   }
 });
 
-app.get('/dashboard/notifications/:userid', async (req, res) => {
-  const { userid } = req.params;
-
-  try {
-    const query = 'SELECT * FROM notifications WHERE user_id = ?';
-    const [results] = await pool.query(query, [userid]);
-
-    // Return an empty set if no notifications are found
-    if (results.length === 0) {
-      return res.status(200).json([]); // Return an empty array
-    }
-
-    res.status(200).json(results);
-  } catch (error) {
-    console.error('Error fetching notifications:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-
-app.delete('/dashboard/notifications/:id', async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const [result] = await pool.query('DELETE FROM notifications WHERE id = ?', [id]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Notification not found' });
-    }
-
-    res.status(200).json({ message: 'Notification deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting notification:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-
-app.put('/dashboard/notifications/mark-read/:userid', async (req, res) => {
-  const { userid } = req.params;
-
-  try {
-    const query = 'UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0';
-    const [result] = await pool.query(query, [userid]);
-
-    if (result.affectedRows === 0) {
-      return res.status(200).json({ message: 'No unread notifications to mark as read' });
-    }
-
-    res.status(200).json({ message: 'All unread notifications marked as read' });
-  } catch (error) {
-    console.error('Error marking notifications as read:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
 
 
 //File uploads
@@ -647,6 +261,110 @@ app.get('/download/:filename', (req, res) => {
     }
   });
 });
+
+//assets extract
+// List of known media formats
+const mediaExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.mp4', '.webm', '.ogg', '.mp3', '.wav', '.mov'];
+
+// Utility function to check if a URL has a media format
+const isMediaAsset = (url) => {
+  return mediaExtensions.some(ext => url.toLowerCase().endsWith(ext));
+};
+
+// Utility function to extract media assets from a page
+const extractMediaAssets = (html, baseUrl) => {
+  const $ = cheerio.load(html);
+  const mediaAssets = [];
+
+  // Extract images (img tags)
+  $('img').each((_, element) => {
+    const src = $(element).attr('src');
+    if (src && isMediaAsset(src)) {
+      mediaAssets.push(new URL(src, baseUrl).href);
+    }
+  });
+
+  // Extract videos (video and source tags)
+  $('video source').each((_, element) => {
+    const src = $(element).attr('src');
+    if (src && isMediaAsset(src)) {
+      mediaAssets.push(new URL(src, baseUrl).href);
+    }
+  });
+  $('video').each((_, element) => {
+    const src = $(element).attr('src');
+    if (src && isMediaAsset(src)) {
+      mediaAssets.push(new URL(src, baseUrl).href);
+    }
+  });
+
+  // Extract audio files (audio and source tags)
+  $('audio source').each((_, element) => {
+    const src = $(element).attr('src');
+    if (src && isMediaAsset(src)) {
+      mediaAssets.push(new URL(src, baseUrl).href);
+    }
+  });
+  $('audio').each((_, element) => {
+    const src = $(element).attr('src');
+    if (src && isMediaAsset(src)) {
+      mediaAssets.push(new URL(src, baseUrl).href);
+    }
+  });
+
+  return mediaAssets;
+};
+
+// Endpoint to fetch media assets
+app.get('/fetch-media-assets', async (req, res) => {
+  const { url } = req.query;
+
+  if (!url) {
+    return res.status(400).json({ error: 'Please provide a URL' });
+  }
+
+  try {
+    // Fetch the webpage
+    const response = await axios.get(url);
+    const html = response.data;
+
+    // Extract media assets
+    const mediaAssets = extractMediaAssets(html, url);
+
+    // Return the media assets as JSON
+    res.json({ mediaAssets });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch the webpage' });
+  }
+});
+
+
+//color picker 
+app.post('/color-picker', async (req, res) => {
+  const colormindUrl = 'http://colormind.io/api/';
+  
+  try {
+      const response = await fetch(colormindUrl, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(req.body), 
+      });
+
+      if (!response.ok) {
+          return res.status(response.status).json({ message: 'Failed to fetch color palette' });
+      }
+
+      const palette = await response.json();
+      res.json(palette);
+  } catch (error) {
+      res.status(500).json({ message: 'Error fetching color palette', error: error.message });
+  }
+});
+
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

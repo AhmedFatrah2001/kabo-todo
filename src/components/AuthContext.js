@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
   const login = (token) => {
     localStorage.setItem('token', token);
     setIsAuthenticated(true);
-    navigate('/my-tasks');
+    navigate('/home');
   };
 
   const logout = () => {

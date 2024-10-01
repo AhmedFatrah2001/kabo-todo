@@ -43,6 +43,7 @@ const UserPerformance = () => {
             `http://localhost:5000/user-performance/${selectedUserId}`
           );
           setPerformance(response.data);
+          console.log(response.data);
         } catch (error) {
           console.error("Error fetching user performance:", error);
         }

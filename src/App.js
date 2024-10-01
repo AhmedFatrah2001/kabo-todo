@@ -6,7 +6,12 @@ import AllTasks from './pages/AllTasks';
 import Profile from './pages/Profile';
 import Dashboard from './pages/Dashboard';
 import DropboxPage from './pages/DropboxPage';
+import HomePage from './pages/HomePage';
 import { AuthProvider, useAuth } from './components/AuthContext';
+import AssetFetcherPage from './pages/AssetFetcherPage';
+import QRCodeGenerator from './components/QRCodeGenerator';
+import ColorPalettePicker from './components/ColorPalettePicker';
+
 
 const ProtectedRoute = ({ element: Component, adminOnly, ...rest }) => {
   const { isAuthenticated } = useAuth();
@@ -31,10 +36,14 @@ function App() {
       {!isLoginPage && <Navbar />}
       <Routes>
         <Route path="/" element={<LoginPage />} />
+        <Route path="/home" element={<ProtectedRoute element={HomePage} />} />
         <Route path="/my-tasks" element={<ProtectedRoute element={MyTasks} />} />
         <Route path="/all-tasks" element={<ProtectedRoute element={AllTasks} />} />
         <Route path="/profile" element={<ProtectedRoute element={Profile} />} />
         <Route path="/dropbox" element={<ProtectedRoute element={DropboxPage} />} /> 
+        <Route path="/assets-fetcher" element={<ProtectedRoute element={AssetFetcherPage} />} /> 
+        <Route path="/qr-code" element={<ProtectedRoute element={QRCodeGenerator} />} />
+        <Route path="/color-palette" element={<ProtectedRoute element={ColorPalettePicker} />} />
         <Route path="/dashboard" element={<ProtectedRoute element={Dashboard} adminOnly />} />
       </Routes>
     </div>
